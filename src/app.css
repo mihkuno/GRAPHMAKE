@@ -1,0 +1,15 @@
+/* Load Outfit from @fontsource */
+@import "@fontsource/outfit";
+
+/* Tailwind directives */
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/typography";
+
+/* Global body styles */
+body {
+  background-color: #1a202c; /* Tailwind's gray-900 */
+  font-family: 'Outfit', sans-serif;
+  color: #f7fafc; /* Tailwind's gray-100 */
+  font-size: 18px;
+}
