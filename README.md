@@ -1,59 +1,94 @@
-<img width="1919" height="944" alt="image" src="https://github.com/user-attachments/assets/e2275414-30d3-43d3-b980-268067b41a4a" />
+# 🕸️ Graph Theory Visualizer
 
-#### Environment
-```
-1. Using Svlete 5 with Typescipt v4
-2. libs:
-  parser - for converting inputs,
-  operations - for performing transform tasks,
-  analyzer - for graph theoretical analysis
-```
+A Svelte 5-based interactive tool for visualizing and analyzing directed graphs with support for graph operations, traversal, and isomorphism detection. 📊
 
-#### Setup 
-```
+![Graph Theory Visualizer](https://github.com/user-attachments/assets/e2275414-30d3-43d3-b980-268067b41a4a)
+
+## 🚀 Features
+
+- ✅ **Directed Graph Visualization** - All graphs are directed by default
+- 🔍 **Auto-detection** - Automatically identifies multi-graphs and simple graphs
+- 🧭 **Graph Traversal** - Traverse existing graphs (subgraphs can be created but not traversed)
+- 🔄 **Isomorphism Detection** - Check if Graph A and Graph B are isomorphic
+- ⚡ **Reactive Inputs** - Real-time state updates as you modify graph data
+
+## 🛠️ Tech Stack
+
+- **Framework:** Svelte 5 with TypeScript v4
+- **Libraries:**
+  - 📝 `parser` - Input conversion and parsing
+  - ⚙️ `operations` - Graph transformation tasks
+  - 🔬 `analyzer` - Graph theoretical analysis
+
+## 🏁 Getting Started
+
+```bash
+# Clone the repository
 git clone <repo>
+
+# Install dependencies and run
 pnpm run dev
 ```
 
-#### Features
-```
-1. Always a directed graph
-2. Auto detects multi and simple graph
-3. Traverse can be subgraph, but subgraph can't be traverse
-4. Isomorphism checks on Graph A and B only
-5. Input responsive to state changes
+## 📝 Input Format
+
+### Adjacency List
+Represent graphs using adjacency lists where the index corresponds to the node ID:
+
+```javascript
+// Simple graph
+[[2,3], [], [0,3], [0,2]]
 ```
 
-#### Examples
-```
-eg. adjacent list (index is node id)
-[ [2,3], [], [0,3], [0,2] ]
+### Traversal Path
+Specify a path through the graph:
 
-eg. traverse
+```javascript
 [0,2,0]
 ```
 
+## 💡 Examples
+
+### Example 1: Complete Graph K₄
+```javascript
+// Each node connected to all others
+[[1, 2, 3], [0, 2, 3], [0, 1, 3], [0, 1, 2]]
 ```
-[   [1, 2, 3],   [0, 2, 3],   [0, 1, 3],   [0, 1, 2] ]
-[ [2,3,3], [], [0,3], [0,0,2,3,3] ]
+
+### Example 2: Multi-graph with Traversal 🔀
+```javascript
+// Graph with multiple edges
+[[2,3,3], [], [0,3], [0,0,2,3,3]]
+
+// Traversal paths
 [0,1,3,1]
 [0,2,0]
 ```
 
-```
-Graph A
+### Example 3: Graph Operations 🧮
+
+**Graph A:**
+```javascript
 [[1,2], [0,2], [0,1,3], [2]]
+```
 
-Graph B
+**Graph B:**
+```javascript
 [[1,3], [0,2], [1,3], [0,2]]
+```
 
-Union (nodes connected if either graph has the edge)
+**Union** ∪ (nodes connected if edge exists in either graph):
+```javascript
 [[1,2,3], [0,2], [0,1,3], [0,2,3]]
+```
 
-Intersection (nodes connected only if both graphs have the edge)
-[[1],[0,2],[1,3],[2]]
+**Intersection** ∩ (nodes connected only if edge exists in both graphs):
+```javascript
+[[1], [0,2], [1,3], [2]]
+```
 
-Cartesian Product 
+**Cartesian Product** × :
+```javascript
 0: [1, 3, 4, 8]
 1: [0, 2, 5, 9]
 2: [1, 3, 6, 10]
@@ -72,10 +107,19 @@ Cartesian Product
 15: [11, 12, 14]
 ```
 
-#### Future
-```
-1. Slow due to unoptimized use of $effect rune
-2. Spaghetti input validation
-3. Responsive layout breaks the container of the graphs
-4. Operations don't work on multigraphs
-```
+## ⚠️ Known Issues
+
+**Current Limitations:**
+
+1. 🐌 **Performance** - Slow due to unoptimized use of Svelte 5's `$effect` rune
+2. 🍝 **Input Validation** - Complex validation logic needs refactoring
+3. 📱 **Responsive Layout** - Container breaks on smaller screens
+4. 🚫 **Multi-graph Support** - Graph operations currently don't work on multi-graphs
+
+## 🤝 Contributing
+
+Contributions are welcome! Feel free to submit issues and pull requests. 💪
+
+## 📄 License
+
+[Add your license here]
