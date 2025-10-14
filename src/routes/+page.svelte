@@ -2,10 +2,12 @@
     import { onMount } from "svelte";
     import { DataSet } from "vis-data/esnext";
     import { Network } from "vis-network/esnext";
+    import type { GraphResult } from "$lib/analyzer";
     import type { Options } from "vis-network";
 
     import Parser from "$lib/parser";
     import Analyzer from "$lib/analyzer";
+    import Operation from "$lib/operation";
 
     let divGraphA: HTMLDivElement;
     let divGraphB: HTMLDivElement;
@@ -22,22 +24,58 @@
     let inputTraverseA = $state('');
     let inputTraverseB = $state('');
     let inputType = $state<'list' | 'matrix'>('list');
-    let outputAnalysis = $state('');
+    
+    let outputAnalysis = $state({
+        isomorphism: false,
+        analysisA: '' as GraphResult | '',
+        analysisB: '' as GraphResult | '',
+        traverseA: '',
+        traverseB: '',
+    });
 
-    function handleInputGraph(input: string, graph: Network) {
+    function stringifyTree(obj, level = 0) {
+        if (Array.isArray(obj)) {
+            const is1D = obj.every(el => !Array.isArray(el) && typeof el !== 'object');
+            if (is1D) {
+            return `[${obj.join(',')}]`;
+            } else {
+            const items = obj.map(el => stringifyTree(el, level + 1)).join(',\n');
+            return `[\n${items}\n]`;
+            }
+        }
+
+        if (typeof obj === 'object' && obj !== null) {
+            const entries = Object.entries(obj)
+            .map(([key, val]) => `${key}:${stringifyTree(val, level + 1)}\n\n`)
+            .join('');
+            return `{\n\n${entries}}`;
+        }
+
+        return JSON.stringify(obj);
+    }
+
+    function handleInputGraph(input: string, graph: Network) {        
         try {
             const dataset = Parser.StringToGraphDataset(input, inputType);
             const analysis = Analyzer.summary(dataset.edges);
             graph.setData(dataset);
-            console.log(inputType, analysis);
+            if      (graph === graphA) outputAnalysis.analysisA = analysis;
+            else if (graph === graphB) outputAnalysis.analysisB = analysis;
         } 
         catch (e) {
             graph.setData({ nodes: new DataSet([]), edges: new DataSet([]) });
-            console.warn("Invalid input", e);
+            if      (graph === graphA) outputAnalysis.analysisA = '';
+            else if (graph === graphB) outputAnalysis.analysisB = '';
         }
+        outputAnalysis.traverseA = '';
+        outputAnalysis.traverseB = '';
     }
 
     function handleTraverseGraph(input: string, graph: Network, subgraph: Network) {
+
+
+        try {
+         
         const sequence: (string | number)[] = JSON.parse(input);
 
         const nodesData = (graph as any).body.data.nodes as DataSet<any>;
@@ -74,10 +112,14 @@
         }
 
         // Determine type
-        let type: "invalid" | "cycle" | "path" | "walk";
+        let type: "" | "invalid" | "cycle" | "path" | "walk";
         if (!isValid) {
             type = "invalid";
-        } else {
+        } 
+        else if (input === '[]') {
+            type = "";
+        }
+        else {
             const uniqueNodes = new Set(sequence);
             const isClosed = sequence.length > 0 && sequence[0] === sequence[sequence.length - 1];
             if (isClosed && uniqueNodes.size === sequence.length - 1) {
@@ -88,7 +130,9 @@
             type = "walk";
             }
         }
-        console.log(type);
+
+        if      (graph === graphA) outputAnalysis.traverseA = type;
+        else if (graph === graphB) outputAnalysis.traverseB = type;
 
         // Highlight nodes
         const highlightNodes = new Set(sequence);
@@ -131,6 +175,83 @@
         subEdges.add(inducedEdges);
 
         subgraph.setData({ nodes: subNodes, edges: subEdges });
+
+        }
+        catch (e) {
+            if (graph === graphA) {
+                outputAnalysis.traverseA = '';
+                subgraph.setData({ nodes: new DataSet([]), edges: new DataSet([]) });
+            }
+            else if (graph === graphB) {
+                outputAnalysis.traverseB = '';
+                subgraph.setData({ nodes: new DataSet([]), edges: new DataSet([]) });
+            };
+        }
+    }
+
+    function handleOperation(type: 'union' | 'intersection' | 'complementA' | 'complementB' | 'cartesianProduct') {
+        try {
+        let result: { nodes: DataSet<any>, edges: DataSet<any> } | null = null;
+
+        // Handle complement operations first
+        if (type === 'complementA' && inputGraphA) {
+            result = Operation.complement(inputType, inputGraphA);
+        } 
+        else if (type === 'complementB' && inputGraphB) {
+            result = Operation.complement(inputType, inputGraphB);
+        } 
+        // Handle binary operations next
+        else if (inputGraphA && inputGraphB) {
+            switch (type) {
+                case 'union':
+                    result = Operation.union(inputType, inputGraphA, inputGraphB);
+                    break;
+                case 'intersection':
+                    result = Operation.intersection(inputType, inputGraphA, inputGraphB);
+                    break;
+                case 'cartesianProduct':
+                    result = Operation.cartesianProduct(inputType, inputGraphA, inputGraphB);
+                    break;
+                default:
+                    console.warn('unsupported operation type:', type);
+                    return;
+            }
+        } 
+        else {
+            console.warn('missing input for operation:', type);
+            return;
+        }
+
+        // apply changes if a valid result was produced
+        if (result) {
+            clearAll();
+            graphA.setData(result);
+
+            const analysis = Analyzer.summary(result.edges);
+            outputAnalysis.analysisA = analysis;
+            outputAnalysis.analysisB = '';
+
+            if (inputType === 'list') {
+                inputGraphA = JSON.stringify(analysis["Adjacency List"]);
+            } else if (inputType === 'matrix') {
+                inputGraphA = JSON.stringify(analysis["Adjacency Matrix"]);
+            }
+        }
+        }
+        catch (e) {
+            console.warn('operation failed:', type);
+        }
+    }
+
+    function clearAll() {
+        handleInputGraph('', graphA);
+        handleInputGraph('', graphB);
+        handleTraverseGraph('', graphA, subgraphA);
+        handleTraverseGraph('', graphB, subgraphB);
+        inputGraphA = '';
+        inputGraphB = '';
+        inputTraverseA = '';
+        inputTraverseB = '';
     }
 
     // input type list or matrix
@@ -138,14 +259,7 @@
         if (inputType) {
             if (graphA && graphB && subgraphA && subgraphB) {
                 // erase all
-                handleInputGraph('[]', graphA);
-                handleInputGraph('[]', graphB);
-                handleTraverseGraph('[]', graphA, subgraphA);
-                handleTraverseGraph('[]', graphB, subgraphB);
-                inputGraphA = '';
-                inputGraphB = '';
-                inputTraverseA = '';
-                inputTraverseB = '';
+                clearAll();
             }
         }
     })
@@ -154,8 +268,8 @@
     $effect(() => { 
         if (inputGraphA && graphA) {
             handleInputGraph(inputGraphA, graphA);
-            // erase
-            handleTraverseGraph('[]', graphA, subgraphA);
+            // erase traverse
+            handleTraverseGraph('', graphA, subgraphA);
             inputTraverseA = '';
         }
     });
@@ -164,32 +278,41 @@
     $effect(() => {
         if (inputGraphB && graphB) {
             handleInputGraph(inputGraphB, graphB);
-            // erase
-            handleTraverseGraph('[]', graphB, subgraphB);
+            // erase traverse
+            handleTraverseGraph('', graphB, subgraphB);
             inputTraverseB = '';
         }
     });
     
-    // traverse graph
+    // traverse graph A
     $effect(() => { 
         if (inputTraverseA && graphA && subgraphA) {
             handleTraverseGraph(inputTraverseA, graphA, subgraphA);
         }
     });
+
+    // traverse graph B
     $effect(() => {
         if (inputTraverseB && graphB && subgraphB) {
             handleTraverseGraph(inputTraverseB, graphB, subgraphB);
         }
     });
 
-    // isomorphism
+    // isomorphism of A and B
     $effect(() => {
         if (inputType && inputGraphA && inputGraphB) {
-            const output = Analyzer.isomorphism(inputType, inputGraphA, inputGraphB);
-            console.log("Isomorphism:", output);
+            try {
+                outputAnalysis.isomorphism = Analyzer.isomorphism(inputType, inputGraphA, inputGraphB);
+            }
+            catch (e) {
+                outputAnalysis.isomorphism = false;
+            }
+        }
+        else {
+            outputAnalysis.isomorphism = false;
         }
     });
-    
+
     const options: Options = {
         interaction: {
             multiselect: true,
@@ -242,18 +365,19 @@
     const dataset =
     { 
     nodes: new DataSet([
-        { id: 1, label: "1" },
-        { id: 2, label: "2" },
-        { id: 3, label: "3" },
-        { id: 4, label: "4" },
-        { id: 5, label: "5" },]), 
+        // { id: 1, label: "1" },
+        // { id: 2, label: "2" },
+        // { id: 3, label: "3" },
+        // { id: 4, label: "4" },
+        // { id: 5, label: "5" },
+    ]), 
     edges: new DataSet([
-        { id: 1, from: 1, to: 3 },
-        { id: 2, from: 1, to: 2 },
-        { id: 3, from: 2, to: 4 },
-        { id: 4, from: 2, to: 5 },
-        { id: 5, from: 5, to: 2 },
-        { id: 6, from: 3, to: 3 },
+        // { id: 1, from: 1, to: 3 },
+        // { id: 2, from: 1, to: 2 },
+        // { id: 3, from: 2, to: 4 },
+        // { id: 4, from: 2, to: 5 },
+        // { id: 5, from: 5, to: 2 },
+        // { id: 6, from: 3, to: 3 },
         ]) 
     };
         
@@ -271,43 +395,66 @@
     <div class="flex flex-col flex-1 gap-4">
         <h2>Input</h2>        
         <div class="flex justify-around gap-2">
-            <div class="flex gap-2 items-center">
+            <div class="flex gap-2 items-center text-sm">
                 <input bind:group={inputType} type="radio" name="inputType" value="list" /> Adjacent List
             </div>
-            <div class="flex gap-2 items-center">
+            <div class="flex gap-2 items-center text-sm">
                 <input bind:group={inputType} type="radio" name="inputType" value="matrix" /> Adjacent Matrix
             </div>
         </div>
-        <input bind:value={inputGraphA} type="text" class="p-4 bg-gray-700 text-gray-50 rounded-lg resize-none" placeholder="Graph A"/>
-        <input bind:value={inputGraphB} type="text" class="p-4 bg-gray-700 text-gray-50 rounded-lg resize-none" placeholder="Graph B"/>
+        <input bind:value={inputGraphA} type="text" class="py-1.5 px-5 bg-gray-700 text-gray-50 rounded-lg resize-none" placeholder="Graph A"/>
+        <input bind:value={inputGraphB} type="text" class="py-1.5 px-5 bg-gray-700 text-gray-50 rounded-lg resize-none" placeholder="Graph B"/>
 
         <h2>Traverse</h2>        
-        <input bind:value={inputTraverseA} type="text" class="p-4 bg-gray-700 text-gray-50 rounded-lg resize-none" placeholder="Graph A"/>
-        <input bind:value={inputTraverseB} type="text" class="p-4 bg-gray-700 text-gray-50 rounded-lg resize-none" placeholder="Graph B"/>
+        <span class="text-xs font-bold text-yellow-300">
+            These require its associated graph to be non-empty
+        </span>
+        <input bind:value={inputTraverseA} type="text" class="py-1.5 px-5 bg-gray-700 text-gray-50 rounded-lg resize-none" placeholder="Graph A"/>
+        <input bind:value={inputTraverseB} type="text" class="py-1.5 px-5 bg-gray-700 text-gray-50 rounded-lg resize-none" placeholder="Graph B"/>
 
         <h2>Operations</h2>        
-        <button class="flex items-center gap-2 px-5 py-4 rounded-2xl font-medium 
+        <button
+            onclick={() => handleOperation('complementA')}
+            class="flex items-center gap-2 px-5 py-1.5 rounded-2xl font-medium 
+                    bg-gray-700 text-gray-100 shadow-md 
+                    hover:bg-indigo-600 hover:scale-101 
+                    active:scale-99 transition transform duration-200 cursor-pointer">
+            <span class="text-lg font-bold text-yellow-300">⊖</span>
+            Complement of A
+        </button>
+        <button
+            onclick={() => handleOperation('complementB')}
+            class="flex items-center gap-2 px-5 py-1.5 rounded-2xl font-medium 
+                    bg-gray-700 text-gray-100 shadow-md 
+                    hover:bg-indigo-600 hover:scale-101 
+                    active:scale-99 transition transform duration-200 cursor-pointer">
+            <span class="text-lg font-bold text-yellow-300">⊖</span>
+            Complement of B
+        </button>
+        <span class="text-xs font-bold text-yellow-300">
+            These require both Graph A and B to be non-empty
+        </span>
+        <button
+            onclick={() => handleOperation('union')}
+            class="flex items-center gap-2 px-5 py-1.5 rounded-2xl font-medium 
                     bg-gray-700 text-gray-100 shadow-md 
                     hover:bg-indigo-600 hover:scale-101 
                     active:scale-99 transition transform duration-200 cursor-pointer">
             <span class="text-lg font-bold text-yellow-300">∪</span>
             Union
         </button>
-        <button class="flex items-center gap-2 px-5 py-4 rounded-2xl font-medium 
+        <button
+            onclick={() => handleOperation('intersection')}
+            class="flex items-center gap-2 px-5 py-1.5 rounded-2xl font-medium 
                     bg-gray-700 text-gray-100 shadow-md 
                     hover:bg-indigo-600 hover:scale-101 
                     active:scale-99 transition transform duration-200 cursor-pointer">
             <span class="text-lg font-bold text-yellow-300">∩</span>
             Intersection
         </button>
-        <button class="flex items-center gap-2 px-5 py-4 rounded-2xl font-medium 
-                    bg-gray-700 text-gray-100 shadow-md 
-                    hover:bg-indigo-600 hover:scale-101 
-                    active:scale-99 transition transform duration-200 cursor-pointer">
-            <span class="text-lg font-bold text-yellow-300">⊖</span>
-            Complement
-        </button>
-        <button class="flex items-center gap-2 px-5 py-4 rounded-2xl font-medium 
+        <button
+            onclick={() => handleOperation('cartesianProduct')}
+            class="flex items-center gap-2 px-5 py-1.5 rounded-2xl font-medium 
                     bg-gray-700 text-gray-100 shadow-md 
                     hover:bg-indigo-600 hover:scale-101 
                     active:scale-99 transition transform duration-200 cursor-pointer">
@@ -317,6 +464,7 @@
     </div>
 
 
+    <!-- graph containers -->
     <div class="flex flex-2 gap-4">    
         
         <div class="flex gap-4 flex-col flex-1">
@@ -342,49 +490,14 @@
         </div>
         
     </div>
-
+    
     <div class="flex flex-col flex-1 gap-4">    
         <h2>Analysis</h2>
         <div class="flex flex-col gap-4 p-4 bg-gray-800 rounded-xl shadow-2xl flex-3 overflow-auto">
             <pre class="text-gray-50 text-sm">
-                <code>{outputAnalysis}<!-- 
-default
-- adjacency list representation
-- matrix resentation
-- special graph identification
-selected a bunch of nodes
-- is walk, path, or cycle
-- enable extract subgraph button and override the viewer-->
-Isomorphism: 
-Graphs: False
-Subgraphs: True
-
-Graph A:
-Edges: 6
-Nodes: 5
-Graph Density: 0.6
-
-Type: Simple
-Directed: False
-Special: True
-Special Type: Complete
-
-Traversal: True
-Traversal Type: Walk
-Traversal List: 1 -> 2
-
-Adjacency Matrix: []
-Adjacency List: []
-Node Degrees: []
-Node Neighbors: []
-
-Graph B:
-Type: Multi
-Loops: False
-Directed: False
-. . .
-                </code>
+<code>{stringifyTree(outputAnalysis)}</code>
             </pre>
         </div>
     </div>
+
 </div>

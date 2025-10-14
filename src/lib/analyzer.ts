@@ -1,7 +1,7 @@
 import { DataSet } from "vis-data";
 import Parser from "$lib/parser";
 
-interface GraphResult {
+export interface GraphResult {
   Edges: number;
   Nodes: number;
   'Graph Density': number;
