@@ -99,4 +99,5 @@ Node Neighbors:[
 1. Slow due to unoptimized use of $effect rune
 2. Spaghetti input validation
 3. Responsive layout breaks the container of the graphs
+4. Operations don't work on multigraphs
 ```
