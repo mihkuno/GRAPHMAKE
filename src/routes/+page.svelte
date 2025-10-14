@@ -22,45 +22,168 @@
     let inputTraverseA = $state('');
     let inputTraverseB = $state('');
     let inputType = $state<'list' | 'matrix'>('list');
-
-    function handleInputType(type: 'list' | 'matrix') {
-        inputType = type;
-        // re-parse both graphs
-        handleInputGraph(inputGraphA, graphA);
-        // handleInputGraph(inputGraphB, graphB);
-    }
+    let outputAnalysis = $state('');
 
     function handleInputGraph(input: string, graph: Network) {
-        
-
-        console.log(inputType);
-
         try {
             const dataset = Parser.StringToGraphDataset(input, inputType);
-            const analysis = Analyzer.GraphFromEdges(dataset.edges);
-            
-            console.log(
-                analysis
-            );
-
+            const analysis = Analyzer.summary(dataset.edges);
             graph.setData(dataset);
-
+            console.log(inputType, analysis);
         } 
         catch (e) {
             graph.setData({ nodes: new DataSet([]), edges: new DataSet([]) });
-            console.error("Invalid input", e);
+            console.warn("Invalid input", e);
         }
     }
 
-    function handleTraverseGraph(input: string, graph: Network) {
+    function handleTraverseGraph(input: string, graph: Network, subgraph: Network) {
+        const sequence: (string | number)[] = JSON.parse(input);
 
+        const nodesData = (graph as any).body.data.nodes as DataSet<any>;
+        const edgesData = (graph as any).body.data.edges as DataSet<any>;
 
+        // Reset all nodes
+        nodesData.forEach((node) => {
+            nodesData.update({
+            id: node.id,
+            color: { background: "#A855F7", border: "#A855F7" },
+            });
+        });
+
+        // Reset all edges
+        edgesData.forEach((edge) => {
+            edgesData.update({
+            id: edge.id,
+            color: "#4B5563",
+            });
+        });
+
+        // Check if valid walk
+        let isValid = true;
+        for (let i = 0; i < sequence.length - 1; i++) {
+            const from = sequence[i];
+            const to = sequence[i + 1];
+            const connecting = edgesData.get({
+            filter: (item: any) => item.from === from && item.to === to,
+            });
+            if (connecting.length === 0) {
+            isValid = false;
+            break;
+            }
+        }
+
+        // Determine type
+        let type: "invalid" | "cycle" | "path" | "walk";
+        if (!isValid) {
+            type = "invalid";
+        } else {
+            const uniqueNodes = new Set(sequence);
+            const isClosed = sequence.length > 0 && sequence[0] === sequence[sequence.length - 1];
+            if (isClosed && uniqueNodes.size === sequence.length - 1) {
+            type = "cycle";
+            } else if (uniqueNodes.size === sequence.length) {
+            type = "path";
+            } else {
+            type = "walk";
+            }
+        }
+        console.log(type);
+
+        // Highlight nodes
+        const highlightNodes = new Set(sequence);
+        highlightNodes.forEach((nodeId) => {
+            nodesData.update({
+            id: nodeId,
+            color: { background: "#EC4899", border: "#FFFFFF" },
+            });
+        });
+
+        // Highlight traversed edges
+        const highlightEdgeIds = new Set<string | number>();
+        for (let i = 0; i < sequence.length - 1; i++) {
+            const from = sequence[i];
+            const to = sequence[i + 1];
+            const connecting = edgesData.get({
+            filter: (item: any) => item.from === from && item.to === to,
+            });
+            connecting.forEach((edge: any) => highlightEdgeIds.add(edge.id));
+        }
+
+        highlightEdgeIds.forEach((edgeId) => {
+            edgesData.update({
+            id: edgeId,
+            color: "#FDE047",
+            });
+        });
+
+        // Build subgraph
+        const subNodes = new DataSet<any>();
+        highlightNodes.forEach((nodeId) => {
+            const node = nodesData.get(nodeId);
+            if (node) subNodes.add(node);
+        });
+
+        const subEdges = new DataSet<any>();
+        const inducedEdges = edgesData.get({
+            filter: (item: any) => highlightNodes.has(item.from) && highlightNodes.has(item.to),
+        });
+        subEdges.add(inducedEdges);
+
+        subgraph.setData({ nodes: subNodes, edges: subEdges });
     }
 
-
-    // output state
-    let outputAnalysis = $state('');
+    $effect(() => { // input type
+        if (inputType) {
+            if (graphA && graphB && subgraphA && subgraphB) {
+                // erase all
+                handleInputGraph('[]', graphA);
+                handleInputGraph('[]', graphB);
+                handleTraverseGraph('[]', graphA, subgraphA);
+                handleTraverseGraph('[]', graphB, subgraphB);
+                inputGraphA = '';
+                inputGraphB = '';
+                inputTraverseA = '';
+                inputTraverseB = '';
+            }
+        }
+    })
+    $effect(() => { // input graph 
+        if (inputGraphA && graphA) {
+            handleInputGraph(inputGraphA, graphA);
+            // erase
+            handleTraverseGraph('[]', graphA, subgraphA);
+            inputTraverseA = '';
+        }
+    });
+    $effect(() => {
+        if (inputGraphB && graphB) {
+            handleInputGraph(inputGraphB, graphB);
+            // erase
+            handleTraverseGraph('[]', graphB, subgraphB);
+            inputTraverseB = '';
+        }
+    });
     
+    // traverse graph
+    $effect(() => { 
+        if (inputTraverseA && graphA && subgraphA) {
+            handleTraverseGraph(inputTraverseA, graphA, subgraphA);
+        }
+    });
+    $effect(() => {
+        if (inputTraverseB && graphB && subgraphB) {
+            handleTraverseGraph(inputTraverseB, graphB, subgraphB);
+        }
+    });
+
+    // isomorphism
+    $effect(() => {
+        if (inputType && inputGraphA && inputGraphB) {
+            const output = Analyzer.isomorphism(inputType, inputGraphA, inputGraphB);
+            console.log("Isomorphism:", output);
+        }
+    });
     
     const options: Options = {
         interaction: {
@@ -111,7 +234,6 @@
         }
     };
 
-
     const dataset =
     { 
     nodes: new DataSet([
@@ -145,14 +267,14 @@
         <h2>Input</h2>        
         <div class="flex justify-around gap-2">
             <div class="flex gap-2 items-center">
-                <input bind:group={inputType} onchange={(e: any) => handleInputType(e.target.value)} type="radio" name="inputType" value="list" /> Adjacent List
+                <input bind:group={inputType} type="radio" name="inputType" value="list" /> Adjacent List
             </div>
             <div class="flex gap-2 items-center">
-                <input bind:group={inputType} onchange={(e: any) => handleInputType(e.target.value)} type="radio" name="inputType" value="matrix" /> Adjacent Matrix
+                <input bind:group={inputType} type="radio" name="inputType" value="matrix" /> Adjacent Matrix
             </div>
         </div>
-        <input bind:value={inputGraphA} oninput={(e: any) => handleInputGraph(e.target.value, graphA)} type="text" class="p-4 bg-gray-700 text-gray-50 rounded-lg resize-none" placeholder="Graph A"/>
-        <input bind:value={inputGraphB} oninput={(e: any) => handleInputGraph(e.target.value, graphB)} type="text" class="p-4 bg-gray-700 text-gray-50 rounded-lg resize-none" placeholder="Graph B"/>
+        <input bind:value={inputGraphA} type="text" class="p-4 bg-gray-700 text-gray-50 rounded-lg resize-none" placeholder="Graph A"/>
+        <input bind:value={inputGraphB} type="text" class="p-4 bg-gray-700 text-gray-50 rounded-lg resize-none" placeholder="Graph B"/>
 
         <h2>Traverse</h2>        
         <input bind:value={inputTraverseA} type="text" class="p-4 bg-gray-700 text-gray-50 rounded-lg resize-none" placeholder="Graph A"/>

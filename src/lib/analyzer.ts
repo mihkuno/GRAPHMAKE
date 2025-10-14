@@ -1,5 +1,5 @@
 import { DataSet } from "vis-data";
-
+import { Network } from "vis-network";
 import Parser from "$lib/parser";
 
 interface GraphResult {
@@ -16,7 +16,7 @@ interface GraphResult {
 
 export default class Analyzer {
 
-  public static GraphFromEdges(edges: DataSet<any>): GraphResult {
+  public static summary(edges: DataSet<any>): GraphResult {
     const edgeArr = edges.get();
     if (edgeArr.length === 0) {
       return {
@@ -172,5 +172,114 @@ export default class Analyzer {
       'Node Degrees': outDegrees,
       'Node Neighbors': nodeNeighbors
     };
+  }
+
+  public static isomorphism(
+    inputType: 'list' | 'matrix',
+    inputGraphA: string,
+    inputGraphB: string
+  ): boolean {
+    let G1: number[][], G2: number[][];
+
+    // --- Parse JSON input safely ---
+    try {
+      G1 = JSON.parse(inputGraphA);
+      G2 = JSON.parse(inputGraphB);
+    } catch {
+      throw new Error("Invalid JSON format for one or both graphs.");
+    }
+
+    // --- Validation helpers ---
+    const isValidAdjList = (G: any): boolean => {
+      if (!Array.isArray(G)) return false;
+      return G.every(
+        (row) =>
+          Array.isArray(row) &&
+          row.every((v) => Number.isInteger(v) && v >= 0)
+      );
+    };
+
+    const isValidAdjMatrix = (G: any): boolean => {
+      if (!Array.isArray(G)) return false;
+      const n = G.length;
+      return G.every(
+        (row) =>
+          Array.isArray(row) &&
+          row.length === n &&
+          row.every((v) => Number.isInteger(v) && v >= 0)
+      );
+    };
+
+    // --- Validate based on type ---
+    if (inputType === "list") {
+      if (!isValidAdjList(G1) || !isValidAdjList(G2))
+        throw new Error("Invalid adjacency list input.");
+    } else if (inputType === "matrix") {
+      if (!isValidAdjMatrix(G1) || !isValidAdjMatrix(G2))
+        throw new Error("Invalid adjacency matrix input.");
+    } else {
+      throw new Error("Input type must be 'list' or 'matrix'.");
+    }
+
+    // --- Convert adjacency list → matrix if needed ---
+    const listToMatrix = (G: number[][]): number[][] => {
+      const n = G.length;
+      const M = Array.from({ length: n }, () => Array(n).fill(0));
+      for (let i = 0; i < n; i++) {
+        for (const j of G[i]) M[i][j]++; // supports parallel edges
+      }
+      return M;
+    };
+
+    if (inputType === "list") {
+      G1 = listToMatrix(G1);
+      G2 = listToMatrix(G2);
+    }
+
+    // --- Check for basic structural differences ---
+    if (G1.length !== G2.length) return false;
+
+    // --- Degree pattern check (in-degree + out-degree) ---
+    const getDegreeProfile = (M: number[][]) =>
+      M.map((row, i) => ({
+        out: row.reduce((a, b) => a + b, 0),
+        in: M.reduce((a, r) => a + r[i], 0),
+      }));
+
+    const d1 = getDegreeProfile(G1);
+    const d2 = getDegreeProfile(G2);
+
+    const degPattern1 = d1.map((d) => `${d.in},${d.out}`).sort().join("|");
+    const degPattern2 = d2.map((d) => `${d.in},${d.out}`).sort().join("|");
+    if (degPattern1 !== degPattern2) return false;
+
+    // --- Brute-force permutation check (small graphs only) ---
+    const permute = (arr: number[]): number[][] => {
+      if (arr.length <= 1) return [arr];
+      const result: number[][] = [];
+      for (let i = 0; i < arr.length; i++) {
+        const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
+        for (const p of permute(rest)) result.push([arr[i], ...p]);
+      }
+      return result;
+    };
+
+    const n = G1.length;
+    const indices = Array.from({ length: n }, (_, i) => i);
+
+    for (const p of permute(indices)) {
+      let isIso = true;
+      for (let i = 0; i < n && isIso; i++) {
+        for (let j = 0; j < n; j++) {
+          if (G1[i][j] !== G2[p[i]][p[j]]) {
+            isIso = false;
+            break;
+          }
+        }
+      }
+      if (isIso) return true;
+    }
+
+    return false;
   }
 }
