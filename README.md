@@ -31,67 +31,37 @@ eg. adjacent list (index is node id)
 
 eg. traverse
 [0,2,0]
+```
 
-eg. output
-{
-isomorphism:true
-traverseA:""
-traverseB:"cycle"
+```
+[   [1, 2, 3],   [0, 2, 3],   [0, 1, 3],   [0, 1, 2] ]
+[ [2,3,3], [], [0,3], [0,0,2,3,3] ]
+[0,1,3,1]
+[0,2,0]
+```
 
-analysisA:{
-Edges:6
-Nodes:4
-Graph Density:0.5
-Graph Type:"Simple"
-Special Type:"-"
-Adjacency Matrix:[
-[0,0,1,1],
-[0,0,0,0],
-[1,0,0,1],
-[1,0,1,0]
-]
-Adjacency List:[
-[2,3],
-[],
-[0,3],
-[0,2]
-]
-Node Degrees:[2,0,2,2]
-Node Neighbors:[
-[2,3],
-[],
-[0,3],
-[0,2]
-]
-}
+```
+Graph A
+[[1,2], [0,2], [0,1,3], [2]]
 
-analysisB:{
-Edges:6
-Nodes:4
-Graph Density:0.5
-Graph Type:"Simple"
-Special Type:"-"
-Adjacency Matrix:[
-[0,0,1,1],
-[0,0,0,0],
-[1,0,0,1],
-[1,0,1,0]
-]
-Adjacency List:[
-[2,3],
-[],
-[0,3],
-[0,2]
-]
-Node Degrees:[2,0,2,2]
-Node Neighbors:[
-[2,3],
-[],
-[0,3],
-[0,2]
-]
-}
-}
+Graph B
+[[1,3], [0,2], [1,3], [0,2]]
+
+Union (nodes connected if either graph has the edge)
+[[1,2,3], [0,2], [0,1,3], [0,2,3]]
+
+Intersection (nodes connected only if both graphs have the edge)
+[[1], [0,2], [3], [2]]
+
+Cartesian Product (G × H)
+
+Nodes: (i,j) where i ∈ A, j ∈ B → id = i*4 + j
+
+Connect (i,j) to (i',j) if (i,i') ∈ A, and to (i,j') if (j,j') ∈ B
+
+Adjacency list (id = i*4 + j):
+
+[[1,2,4], [0,2,5], [0,1,3,6], [2,7], [0,5,8], [1,4,6,9], [2,5,7,10], [3,6,11], [4,9,8], [5,8,9,10], [6,9,11,10], [7,10,11], [8,11,12], [9,10,13], [10,13,14], [11,12,15]]
 ```
 
 #### Future
