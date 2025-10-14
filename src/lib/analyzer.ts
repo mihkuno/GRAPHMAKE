@@ -1,5 +1,4 @@
 import { DataSet } from "vis-data";
-import { Network } from "vis-network";
 import Parser from "$lib/parser";
 
 interface GraphResult {

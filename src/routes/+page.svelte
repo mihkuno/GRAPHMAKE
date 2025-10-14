@@ -133,7 +133,8 @@
         subgraph.setData({ nodes: subNodes, edges: subEdges });
     }
 
-    $effect(() => { // input type
+    // input type list or matrix
+    $effect(() => {
         if (inputType) {
             if (graphA && graphB && subgraphA && subgraphB) {
                 // erase all
@@ -148,7 +149,9 @@
             }
         }
     })
-    $effect(() => { // input graph 
+
+    // input graph A
+    $effect(() => { 
         if (inputGraphA && graphA) {
             handleInputGraph(inputGraphA, graphA);
             // erase
@@ -156,6 +159,8 @@
             inputTraverseA = '';
         }
     });
+
+    // input graph B
     $effect(() => {
         if (inputGraphB && graphB) {
             handleInputGraph(inputGraphB, graphB);
