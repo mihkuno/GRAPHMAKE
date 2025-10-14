@@ -33,21 +33,21 @@
         traverseB: '',
     });
 
-    function stringifyTree(obj, level = 0) {
+    function stringifyTree(obj: unknown, level: number = 0): string {
         if (Array.isArray(obj)) {
-            const is1D = obj.every(el => !Array.isArray(el) && typeof el !== 'object');
+            const is1D: boolean = obj.every((el: unknown) => !Array.isArray(el) && typeof el !== 'object');
             if (is1D) {
-            return `[${obj.join(',')}]`;
+                return `[${obj.join(',')}]`;
             } else {
-            const items = obj.map(el => stringifyTree(el, level + 1)).join(',\n');
-            return `[\n${items}\n]`;
+                const items: string = obj.map((el: unknown) => stringifyTree(el, level + 1)).join(',\n');
+                return `[\n${items}\n]`;
             }
         }
 
         if (typeof obj === 'object' && obj !== null) {
-            const entries = Object.entries(obj)
-            .map(([key, val]) => `${key}:${stringifyTree(val, level + 1)}\n\n`)
-            .join('');
+            const entries: string = Object.entries(obj)
+                .map(([key, val]: [string, unknown]) => `${key}:${stringifyTree(val, level + 1)}\n\n`)
+                .join('');
             return `{\n\n${entries}}`;
         }
 
@@ -67,8 +67,6 @@
             if      (graph === graphA) outputAnalysis.analysisA = '';
             else if (graph === graphB) outputAnalysis.analysisB = '';
         }
-        outputAnalysis.traverseA = '';
-        outputAnalysis.traverseB = '';
     }
 
     function handleTraverseGraph(input: string, graph: Network, subgraph: Network) {
@@ -272,6 +270,11 @@
             handleTraverseGraph('', graphA, subgraphA);
             inputTraverseA = '';
         }
+        else if (graphA) {
+            outputAnalysis.analysisA = '';
+            outputAnalysis.traverseA = '';
+            handleInputGraph('', graphA);
+        }
     });
 
     // input graph B
@@ -282,6 +285,11 @@
             handleTraverseGraph('', graphB, subgraphB);
             inputTraverseB = '';
         }
+        else if (graphB) {
+            outputAnalysis.analysisB = '';
+            outputAnalysis.traverseB = '';
+            handleInputGraph('', graphB);
+        }
     });
     
     // traverse graph A
@@ -289,12 +297,22 @@
         if (inputTraverseA && graphA && subgraphA) {
             handleTraverseGraph(inputTraverseA, graphA, subgraphA);
         }
+        else if (graphA && subgraphA) {
+            outputAnalysis.traverseA = '';
+            handleTraverseGraph('', graphA, subgraphA);
+            inputTraverseA = '';
+        }
     });
 
     // traverse graph B
     $effect(() => {
         if (inputTraverseB && graphB && subgraphB) {
             handleTraverseGraph(inputTraverseB, graphB, subgraphB);
+        }
+        else if (graphB && subgraphB) {
+            outputAnalysis.traverseB = '';
+            handleTraverseGraph('', graphB, subgraphB);
+            inputTraverseB = '';
         }
     });
 
