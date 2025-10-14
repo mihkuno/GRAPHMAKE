@@ -27,10 +27,10 @@
     
     let outputAnalysis = $state({
         isomorphism: false,
-        analysisA: '' as GraphResult | '',
-        analysisB: '' as GraphResult | '',
         traverseA: '',
         traverseB: '',
+        analysisA: '' as GraphResult | '',
+        analysisB: '' as GraphResult | '',
     });
 
     function stringifyTree(obj: unknown, level: number = 0): string {
