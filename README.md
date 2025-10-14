@@ -1,41 +1,31 @@
 <img width="1919" height="944" alt="image" src="https://github.com/user-attachments/assets/e2275414-30d3-43d3-b980-268067b41a4a" />
 
-
-# sv
-
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
-
-## Creating a project
-
-If you're seeing this, you've probably already done this step. Congrats!
-
-```sh
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
+#### Environment
+```
+1. Using Svlete 5 with Typescipt v4
+2. libs:
+  parser - for converting inputs,
+  operations - for performing transform tasks,
+  analyzer - for graph theoretical analysis
 ```
 
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+#### Setup 
+```
+git clone <repo>
+pnpm run dev
 ```
 
-## Building
-
-To create a production version of your app:
-
-```sh
-npm run build
+#### Features
+```
+1. Always a directed graph
+2. Auto detects multi and simple graph
+3. Traverse can be subgraph, but subgraph can't be traverse
+4. Responsive to state changes
 ```
 
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+#### Future
+```
+1. Slow due to unoptimized use of $effect rune
+2. Spaghetti input validation
+3. Responsive layout breaks the container of the graphs
+```
