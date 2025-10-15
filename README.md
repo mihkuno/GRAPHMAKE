@@ -16,6 +16,7 @@ A Svelte 5-based interactive tool for visualizing and analyzing directed graphs 
 
 - **Framework:** Svelte 5 with TypeScript v4
 - **Libraries:**
+  - 👁️ `vis-network` - Graph network visualization
   - 📝 `parser` - Input conversion and parsing
   - ⚙️ `operations` - Graph transformation tasks
   - 🔬 `analyzer` - Graph theoretical analysis
